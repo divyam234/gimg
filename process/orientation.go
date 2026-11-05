@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"image"
 	"image/draw"
-
-	"github.com/gen2brain/jpegn"
 )
 
 // pixelTransform is the linear part of a rectangle's orthogonal transform.
@@ -81,9 +79,9 @@ func (t pixelTransform) point(x, y, w, h int) (int, int) {
 }
 
 // orientImage performs at most one source-sized RGBA allocation, even when EXIF,
-// rotation, and flips are combined. Identity compositions retain the native image
-// and existing lazy JPEG-row path. JPEG conversion uses the codec's exact row
-// converter once per source row, never a second full-sized conversion buffer.
+// rotation, and flips are combined. Identity compositions retain the decoded
+// image without allocating an orientation buffer. Non-RGBA images are converted
+// one row at a time instead of materializing another full-sized intermediate.
 func orientImage(ctx context.Context, img image.Image, t pixelTransform) (image.Image, error) {
 	if t == exifTransforms[1] {
 		return img, nil
@@ -93,12 +91,8 @@ func orientImage(ctx context.Context, img image.Image, t pixelTransform) (image.
 	dw, dh := t.size(w, h)
 	dst := image.NewRGBA(image.Rect(0, 0, dw, dh))
 	var rowImage *image.RGBA
-	var scratch []byte
 	if _, ok := img.(*image.RGBA); !ok {
 		rowImage = image.NewRGBA(image.Rect(0, 0, w, 1))
-		if _, ok := img.(*image.YCbCr); ok {
-			scratch = make([]byte, 2*w)
-		}
 	}
 	step := 4*t.a + dst.Stride*t.c
 	for y := range h {
@@ -109,11 +103,6 @@ func orientImage(ctx context.Context, img image.Image, t pixelTransform) (image.
 		switch src := img.(type) {
 		case *image.RGBA:
 			row = src.Pix[y*src.Stride:][:4*w]
-		case *image.YCbCr:
-			row = rowImage.Pix
-			if err := jpegn.YCbCrToRGBARow(row, scratch, src, bounds.Min.Y+y); err != nil {
-				return nil, err
-			}
 		default:
 			draw.Draw(rowImage, rowImage.Bounds(), img, image.Pt(bounds.Min.X, bounds.Min.Y+y), draw.Src)
 			row = rowImage.Pix

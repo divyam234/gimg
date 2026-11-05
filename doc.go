@@ -58,8 +58,8 @@
 //
 // The gimg command adds native Go SIMD JPEG, PNG, WebP, and HEIC codecs.
 // PNG uses gen2brain/pngn; HEIC uses gen2brain/h265/heic. No CGo, WebAssembly,
-// or shared codec libraries are needed. JPEG and WebP dependencies are pinned
-// to remote divyam234 forks in go.mod; sibling checkouts are not required.
+// or shared codec libraries are needed. All codec dependencies use upstream
+// gen2brain releases directly; applications do not need module replacements.
 //
 //	CGO_ENABLED=0 go run ./cmd/gimg -width 1280 -height 852 input.jpg output.webp
 //
@@ -67,11 +67,10 @@
 // quality as well as decode cost; full-resolution decoding is the default.
 // Automatic EXIF/HEIF orientation defaults on; -auto-orient=false disables it.
 // The -rotate, -flip-horizontal, and -flip-vertical flags apply before resize/crop.
-// Identity YCbCr JPEG transforms retain native planes and convert rows directly
-// into worker scratch before filtering, preserving full-conversion pixels and
-// avoiding a source-sized RGBA allocation. Nonidentity compositions use one
-// oriented RGBA buffer, filled with the same row converter. Other JPEG color
-// models keep RGBA decoding.
+// JPEG decoding uses the upstream codec's RGBA output and may allocate a
+// source-sized RGBA image. Nonidentity orientation/rotation/flip compositions use
+// one additional oriented RGBA buffer; identity compositions reuse the decoded
+// image directly.
 //
 // Run the retained resize-only benchmarks with:
 //

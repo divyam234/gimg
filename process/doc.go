@@ -72,9 +72,9 @@
 // byte limit for random-access decoding; the same encoded buffer is shared by
 // header inspection and full decoding. PNG's codec buffers the encoded input
 // during full decoding. These encoded buffers are additional to decoded pixel
-// storage. Identity JPEG transforms retain lazy YCbCr row conversion. The
-// processor's EXIF/explicit transform composition uses at most one source-sized
-// orientation buffer, plus row scratch, rather than one buffer per operation.
+// storage. JPEG decoding materializes a complete RGBA image using the upstream
+// codec. The processor's EXIF/explicit transform composition uses at most one
+// source-sized orientation buffer, plus row scratch, rather than one per operation.
 // HEIC's native container presentation may allocate additional transform buffers.
 // Optional JPEG scaled decoding is chosen against the planned intermediate size;
 // JPEG geometry is always computed from the oriented original source dimensions.

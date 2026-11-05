@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 	"io"
 
@@ -86,13 +85,6 @@ func (r *boundedInput) Read(b []byte) (int, error) {
 	n, err := r.r.Read(b)
 	r.remaining -= int64(n)
 	return n, err
-}
-
-type jpegRows struct{ *image.YCbCr }
-
-func (s jpegRows) ScratchSize() int { return 2 * s.Rect.Dx() }
-func (s jpegRows) ReadRGBARow(dst, scratch []byte, y int) error {
-	return jpegn.YCbCrToRGBARow(dst, scratch, s.YCbCr, y)
 }
 
 func (p *Processor) acquire(ctx context.Context) (*resize.Resizer, func(), error) {
@@ -220,7 +212,7 @@ func (p *Processor) transformWithResizer(ctx context.Context, dst io.Writer, src
 				}
 			}
 		}
-		img, err = jpegn.Decode(replay, &jpegn.Options{ToRGBA: config.ColorModel != color.YCbCrModel, ScaleDenom: denominator})
+		img, err = jpegn.Decode(replay, &jpegn.Options{ToRGBA: true, ScaleDenom: denominator})
 	case PNG:
 		img, err = pngn.Decode(replay, &pngn.Options{
 			PixelLimit: int(min(p.cfg.MaxSourcePixels, int64(int(^uint(0)>>1)))),
@@ -268,8 +260,6 @@ func (p *Processor) transformWithResizer(ctx context.Context, dst io.Writer, src
 	} else {
 		out = image.NewRGBA(image.Rect(0, 0, g.resizeWidth, g.resizeHeight))
 		switch s := img.(type) {
-		case *image.YCbCr:
-			err = resizer.ResizeRows(out, jpegRows{s}, o.Filter)
 		case *image.RGBA:
 			err = resizer.Resize(out, s, o.Filter)
 		default:
